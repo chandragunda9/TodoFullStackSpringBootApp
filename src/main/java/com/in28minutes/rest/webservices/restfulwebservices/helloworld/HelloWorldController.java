@@ -7,6 +7,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HelloWorldController {
 	
+	@GetMapping(path = "/")
+	public String returnSomethingAtRootUrl() {
+		return "Welcome to Todo App v4"; 
+	}
+	
 	@GetMapping(path = "/basicauth")
 	public String basicAuth() {
 		return "Success"; 

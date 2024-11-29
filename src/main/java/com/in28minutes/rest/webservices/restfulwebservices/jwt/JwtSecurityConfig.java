@@ -6,7 +6,6 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.UUID;
 
-import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,9 +26,10 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -37,33 +37,42 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class JwtSecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity, HandlerMappingIntrospector introspector) throws Exception {
-        
-        // h2-console is a servlet 
-        // https://github.com/spring-projects/spring-security/issues/12310
+    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity
-                .authorizeHttpRequests(auth -> auth
-                    .antMatchers("/authenticate").permitAll()
-//                    .requestMatchers(PathRequest.toH2Console()).permitAll() // h2-console is a servlet and NOT recommended for a production
-                    .antMatchers(HttpMethod.OPTIONS,"/**")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.
-                    sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .oauth2ResourceServer(
-                        OAuth2ResourceServerConfigurer::jwt)
+                .csrf(AbstractHttpConfigurer::disable) // (1)
+                .sessionManagement(
+                        session -> 
+                            session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS)) // (2)
+                .authorizeHttpRequests(
+                        auth -> 
+                            auth.antMatchers("/", //#CHANGE
+                            		"/authenticate", "/actuator", "/actuator/*")
+                                .permitAll()
+                                .antMatchers("/h2-console/**")
+                                .permitAll()
+                                .antMatchers(HttpMethod.OPTIONS,"/**")
+                                .permitAll()
+                                .anyRequest()
+                                .authenticated()) // (3)
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults())) // (4)
+                .exceptionHandling(
+                        (ex) -> 
+                            ex.authenticationEntryPoint(
+                                new BearerTokenAuthenticationEntryPoint())
+                              .accessDeniedHandler(
+                                new BearerTokenAccessDeniedHandler()))
                 .httpBasic(
-                        Customizer.withDefaults())
-                .headers(header -> {header.
-                    frameOptions().sameOrigin();})
+                        withDefaults()) // (5)
+                .headers(header -> header.frameOptions(frameOptionsConfig -> frameOptionsConfig.sameOrigin()))
                 .build();
     }
 
@@ -130,4 +139,3 @@ public class JwtSecurityConfig {
     }
     
 }
-

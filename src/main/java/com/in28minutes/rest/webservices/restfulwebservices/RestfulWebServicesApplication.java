@@ -17,7 +17,15 @@ public class RestfulWebServicesApplication {
 	public WebMvcConfigurer corsConfigurer() {
 		return new WebMvcConfigurer() {
 			public void addCorsMappings(CorsRegistry registry) {
-				registry.addMapping("/**").allowedMethods("*").allowedOrigins("http://localhost:3000");
+//				registry.addMapping("/**")
+//				.allowedMethods("*")
+////				.allowedOrigins("http://localhost:3000");
+//				.allowedOrigins("*"); //not recommended for production, should give the url frontend where it is deployed
+				
+				
+				registry.addMapping("/**")
+				.allowedMethods("*")
+				.allowedOrigins("*");
 			}
 		};
 	}
